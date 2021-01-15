@@ -15,6 +15,7 @@ import json
 import re
 import zlib
 
+import requests
 from future.utils import raise_from
 from requests import exceptions
 
@@ -182,7 +183,20 @@ class MSLRequests(MSLRequestBuilder):
             LOG.debug('Executing POST request to {}', _endpoint)
             start = perf_clock()
             try:
-                response = self.session.post(_endpoint, request_data, timeout=4)
+                # The Requests module has persistent connections enabled by default, that send
+                # "connection: keep-alive" in the headers, Netflix does not use persistent connections and
+                # this prevents connections from being returned to the pool that can causing failures with new requests,
+                # see PR:
+                # Currently Requests module not allow to disable keep-alive the only way is create a custom request.
+                req = requests.Request('POST',
+                                       url=_endpoint,
+                                       headers=self.session.headers,
+                                       cookies=self.session.cookies,
+                                       data=request_data)
+                req_prepared = req.prepare()
+                response = self.session.send(req_prepared,
+                                             timeout=4)
+                # response = self.session.post(_endpoint, request_data, timeout=4)
                 LOG.debug('Request took {}s', perf_clock() - start)
                 LOG.debug('Request returned response with status {}', response.status_code)
                 response.raise_for_status()

@@ -11,7 +11,9 @@
 from __future__ import absolute_import, division, unicode_literals
 
 import json
+from copy import deepcopy
 
+import requests
 from future.utils import raise_from
 
 import resources.lib.utils.website as website
@@ -59,13 +61,30 @@ class SessionHTTPRequests(SessionBase):
         data, headers, params = self._prepare_request_properties(endpoint_conf, kwargs)
         start = perf_clock()
         try:
-            response = method(
-                url=url,
-                verify=self.verify_ssl,
-                headers=headers,
-                params=params,
-                data=data,
-                timeout=8)
+            # The Requests module has persistent connections enabled by default, that send
+            # "connection: keep-alive" in the headers, Netflix does not use persistent connections and
+            # this prevents connections from being returned to the pool that can causing failures with new requests,
+            # see PR:
+            # Currently Requests module not allow to disable keep-alive the only way is create a custom request.
+            _headers = deepcopy(self.session.headers)
+            _headers.update(headers)
+            req = requests.Request('GET' if method == self.session.get else 'POST',
+                                   url=url,
+                                   headers=_headers,
+                                   cookies=self.session.cookies,
+                                   params=params,
+                                   data=data)
+            req_prepared = req.prepare()
+            response = self.session.send(req_prepared,
+                                         verify=self.verify_ssl,
+                                         timeout=8)
+            # response = method(
+            #     url=url,
+            #     verify=self.verify_ssl,
+            #     headers=headers,
+            #     params=params,
+            #     data=data,
+            #     timeout=8)
         except exceptions.ReadTimeout as exc:
             LOG.error('HTTP Request ReadTimeout error: {}', exc)
             raise_from(HttpErrorTimeout, exc)
