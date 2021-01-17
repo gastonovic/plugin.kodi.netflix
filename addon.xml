@@ -4,7 +4,6 @@
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.addon.signals" version="0.0.6"/>
     <import addon="script.module.inputstreamhelper" version="0.4.4"/>
-    <import addon="script.module.pycryptodome" version="3.4.3"/>
     <import addon="script.module.requests" version="2.22.0"/>
     <import addon="script.module.myconnpy" version="8.0.18"/> <!--MySQL Connector/Python-->
   </requires>
